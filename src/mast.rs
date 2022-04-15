@@ -16,12 +16,13 @@ pub fn get_sections(path: &String, offset: u32, section_amount: u32) -> Vec<sect
     let mut names: Vec<String> = Vec::new();
     for sect in 0..section_amount{
         let section_name: u32 = read::read_u32(&path, (0x20+offset+sect*0x40) as usize);
+        let string_section_name: String = String::from_utf8(read::read_array(&path, (0x20+offset+sect*0x40) as usize, 4)).unwrap();
         let mut section_offset: u32 = read::read_u32(&path, (0x20+offset+sect*0x40+0x1C) as usize) * 0x800;
         let mut section_length: u32 = read::read_u32(&path, (0x20+offset+sect*0x40+0x20) as usize);
         let mut section_table_offset: u32 = read::read_u32(&path, (0x20+offset+sect*0x40+0x38) as usize);
         let data = read::read_array(&path, section_offset as usize, section_length as usize);
 
-        let mut section = section::section{name: section_name, offset: section_offset, length: section_length, is_name_container: section_name == 1346641952, section_table_offset: offset+section_table_offset, data: data, tables: section::get_tables(path, offset+section_table_offset, section_offset)};
+        let mut section = section::section{name: string_section_name, offset: section_offset, length: section_length, is_name_container: section_name == 1346641952, section_table_offset: offset+section_table_offset, data: data, tables: section::get_tables(path, offset+section_table_offset, section_offset)};
 
         // println!("------Sect Nr.{} info: {} {} {} {}", sect, section_name, section_offset, section_length, section_table_offset);
 
