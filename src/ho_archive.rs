@@ -2,9 +2,14 @@ use crate::mast;
 use crate::read;
 
 pub struct ho_archive{
+    pub platform: String,
+    pub username: String,
+    pub game: String,
+    pub program: String,
     pub path: String,
     pub mast: mast::mast,
 }
+
 
 pub fn get_mast(path: String) -> mast::mast{
     let mut offset: u32 = read::read_u32(&path, 0x83C) * 0x800;
