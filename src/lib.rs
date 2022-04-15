@@ -7,15 +7,67 @@ mod read;
 mod write;
 mod math;
 
+
 pub fn create_archive(path: String) -> ho_archive::ho_archive{
-    return ho_archive::ho_archive{path: path.clone(), mast: ho_archive::get_mast(path)};
+    let mut platform_byte = read::read_array(&path, 0x400 as usize, 0x10);
+    let mut username_byte = read::read_array(&path, 0x43C as usize, 0x40);
+    let mut game_byte = read::read_array(&path, 0x47C as usize, 0x40);
+    let mut program_byte = read::read_array(&path, 0x4BC as usize, 0x40);
+
+    platform_byte.retain(|&x| x != 0);
+    username_byte.retain(|&x| x != 0);
+    game_byte.retain(|&x| x != 0);
+    program_byte.retain(|&x| x != 0);
+
+    let mut platform = String::from_utf8(platform_byte).unwrap();
+    let mut username = String::from_utf8(username_byte).unwrap();
+    let mut game = String::from_utf8(game_byte).unwrap();
+    let mut program = String::from_utf8(program_byte).unwrap();
+
+    return ho_archive::ho_archive{platform: platform, username: username, game: game, program: program, path: path.clone(), mast: ho_archive::get_mast(path)};
 }
 
 pub fn save_archive(archive: ho_archive::ho_archive){
     let mut to_write: Vec<u8> = Vec::new();
 
-    let mut pointer = archive.mast.offset as usize + 0x20;
+    let mut pointer = 0x400;
     to_write.extend(read::read_array(&archive.path, 0, pointer));
+    pointer = 0x43C;
+
+    let platform = archive.platform.as_bytes();
+    let username = archive.username.as_bytes();
+    let game = archive.game.as_bytes();
+    let program = archive.program.as_bytes();
+
+    for i in 0..platform.len(){
+        to_write.push(0);
+        to_write.push(platform[i]);
+    }
+    to_write.extend(vec![0; pointer-to_write.len()]);
+
+    pointer += 0x40;
+    for i in 0..username.len(){
+        to_write.push(0);
+        to_write.push(username[i]);
+    }
+    to_write.extend(vec![0; pointer-to_write.len()]);
+
+    pointer += 0x40;
+    for i in 0..game.len(){
+        to_write.push(0);
+        to_write.push(game[i]);
+    }
+    to_write.extend(vec![0; pointer-to_write.len()]);
+
+    pointer += 0x40;
+    for i in 0..program.len(){
+        to_write.push(0);
+        to_write.push(program[i]);
+    }
+    to_write.extend(vec![0; pointer-to_write.len()]);
+
+    to_write.extend(read::read_array(&archive.path, pointer, (archive.mast.offset as usize + 0x20)-pointer));
+    pointer = archive.mast.offset as usize + 0x20;
 
     for sect in archive.mast.sections.iter(){
         to_write.extend(read::read_array(&archive.path, pointer, 0x1C)); pointer += 0x1C;
@@ -129,6 +181,12 @@ pub fn save_archive(archive: ho_archive::ho_archive){
 
 pub fn update_archive(archive: ho_archive::ho_archive) -> ho_archive::ho_archive{
     let mut archive = archive;
+
+    if archive.platform.len() > 0x1E{archive.platform = archive.platform[..0x1E].to_string();}
+    if archive.username.len() > 0x20{archive.username = archive.username[..0x20].to_string();}
+    if archive.game.len() > 0x20 {archive.game = archive.game[..0x20].to_string();}
+    if archive.program.len() > 0x20{archive.program = archive.program[..0x20].to_string();}
+    
     for sect in 0..archive.mast.sections.len(){
         if sect > 0{archive.mast.sections[sect].offset = archive.mast.sections[sect-1].offset + math::round_up_to(archive.mast.sections[sect-1].length as usize, 0x800) as u32;}
         if archive.mast.sections[sect].is_name_container{continue;}
